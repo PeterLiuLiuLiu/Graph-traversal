@@ -81,18 +81,6 @@ int dll_contains_value(dll_t* l, int value){
     return -9999;
 }
 
-int dll_length(dll_t* l){
-    if(l == NULL) return -1;
-
-    int counter = 0;
-    node_t* curr_node = l->head;
-    while(curr_node != NULL){
-        counter++;
-        curr_node = curr_node->next;
-    }
-    return counter;
-}
-
 // Creates a graph node
 // Note: This relies on your dll implementation.
 graph_node_t * create_graph_node(int value){
@@ -291,7 +279,7 @@ int getNumInNeighbors( graph_t * g, int value){
 
     dll_t * l = getInNeighbors(g, value);
     if (l == NULL) return -1;
-    int length = dll_length(l);
+    int length = dll_size(l);
     if (length == -1) return -1;
 
     return length;
@@ -320,7 +308,7 @@ int getNumOutNeighbors( graph_t * g, int value){
 
     dll_t * l = getOutNeighbors(g, value);
     if (l == NULL) return -1;
-    int length = dll_length(l);
+    int length = dll_size(l);
     if (length == -1) return -1;
 
     return length;
@@ -410,6 +398,15 @@ int graph_is_reachable(graph_t * g, int source, int dest){
 
 // helper function for graph_has_cycles
 int dfs_helper_graph_has_cycles(graph_t* g, dll_t* stack, int val){
+    // get the last popped item and make sure upon checking for cycles,
+    // the last item is not check since a bi-laterally connection between
+    // two nodes does not make a cycle
+    int stackLength = dll_size(stack);
+    if(stackLength - 2 >= 0){
+        // check the condition of 1->2 and 2->1 only if the stack gets populated sufficiently
+        int lastVistedItem = dll_get(stack, stackLength - 2);
+        if(lastVistedItem == val) return 0; // stop exploring the previous node
+    }
 
     if(dll_contains_value(stack, val) >= 0) return 1;
 
