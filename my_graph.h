@@ -27,6 +27,65 @@ typedef struct graph_node{
     dll_t* outNeighbors;
 } graph_node_t;
 
+// -----------------------------helper function---------------------------------
+
+// Check a general dll to see if the val is present
+// -1 means l is NULL
+// -9999 means not found
+int dll_contains_graph_node(dll_t* l, int value){
+    int pos = 0;
+    if(l == NULL) return -1;
+    node_t *curr_node = l->head;
+    while(curr_node != NULL){
+        if((int)curr_node->data == value){
+            return pos;
+        }
+        curr_node = curr_node->next;
+        pos++;
+    }
+    return -9999;
+}
+
+// Returns the node pointer if the node exists.
+// Returns NULL if the node doesn't exist or the graph is -1
+int find_node_in_graph_dll( graph_t * g, int value){
+    if ( g == NULL ) return -1;
+
+    int pos = 0;
+    node_t *curr_node = g->nodes->head;
+    while(curr_node != NULL){
+        // data of the head of g->node contains a graph node
+        graph_node_t* curr_g_node = (graph_node_t*)curr_node->data;
+        if((int)curr_g_node->data == value){
+            return pos;
+        }
+        pos++;
+        curr_node = curr_node->next;
+    }
+    return -1;
+}
+
+// Check the neighor dll to see if the src or dest is present
+// -1 means l is NULL
+// -9999 means not found
+int neighbor_dll_contains_graph_node(dll_t* l, int value){
+    int pos = 0;
+
+    if(l == NULL) return -1;
+    node_t *curr_node = l->head;
+    while(curr_node != NULL){
+        graph_node_t *temp_g_node = curr_node->data;
+        if(temp_g_node->data == value){
+            return pos;
+        }
+        curr_node = curr_node->next;
+        pos++;
+    }
+    return -9999;
+}
+// -----------------------------------------------------------------------------
+
+
 // Creates a graph
 // Returns a pointer to a newly created graph.
 // The graph should be initialized with data on the heap.
@@ -45,40 +104,22 @@ graph_t* create_graph(){
 }
 
 // Returns the node pointer if the node exists.
-// Returns NULL if the node doesn't exist or the graph is -1
-int find_node_in_graph_dll( graph_t * g, int value){
-    if ( g == NULL ) return -1;
+// Returns NULL if the node doesn't exist or the graph is NULL
+graph_node_t* find_node( graph_t * g, int value){
+    if ( g == NULL ) return NULL;
 
     int pos = 0;
     node_t *curr_node = g->nodes->head;
     while(curr_node != NULL){
         // data of the head of g->node contains a graph node
-        graph_node_t* curr_g_node = (graph_node_t*)curr_node->data;
-        if(curr_g_node->data == value){
-            return pos;
+        graph_node_t* curr_g_node = (graph_node_t*) curr_node->data;
+        if((int)curr_g_node->data == value){
+            return curr_g_node;
         }
         pos++;
         curr_node = curr_node->next;
     }
-    return -1;
-}
-
-// Check the neighor dll to see if the src or dest is present
-// -1 means l is NULL
-// -9999 means not found
-int dll_contains_value(dll_t* l, int value){
-    int pos = 0;
-
-    if(l == NULL) return -1;
-    node_t *curr_node = l->head;
-    while(curr_node != NULL){
-        if(curr_node->data == value){
-            return pos;
-        }
-        curr_node = curr_node->next;
-        pos++;
-    }
-    return -9999;
+    return NULL;
 }
 
 // Creates a graph node
@@ -115,6 +156,34 @@ int graph_add_node(graph_t* g, int value){
 }
 
 // Returns 1 on success
+// Returns 0 on failure ( or if the source or destination nodes don't exist, or the edge doesn't exists )
+// Returns -1 if the graph is NULL.
+int graph_remove_edge(graph_t * g, int source, int destination){
+    // TODO: Implement me!
+    //The function removes an edge from source to destination but not the other way.
+    //Make sure you remove destination from the out neighbors of source.
+    //Make sure you remove source from the in neighbors of destination.
+    if ( g == NULL ) return -1;
+
+    int src_pos = find_node_in_graph_dll(g, source);
+    int dest_pos = find_node_in_graph_dll(g, destination);
+    if(src_pos == -1 || dest_pos == -1) return 0;
+
+    graph_node_t *src = dll_get(g->nodes, src_pos);
+    graph_node_t *dest = dll_get(g->nodes, dest_pos);
+
+    int src_neighbor_pos = neighbor_dll_contains_graph_node(src->outNeighbors, destination);
+    int dest_neighbor_pos = neighbor_dll_contains_graph_node(dest->inNeighbors, source);
+
+    if(src_neighbor_pos < 0 || dest_neighbor_pos < 0) return 0;
+    dll_remove(src->outNeighbors, src_neighbor_pos);
+    dll_remove(dest->inNeighbors, dest_neighbor_pos);
+
+    g->numEdges--;
+    return 1;
+}
+
+// Returns 1 on success
 // Returns 0 on failure ( or if the node doesn't exist )
 // Returns -1 if the graph is NULL.
 int graph_remove_node(graph_t* g, int value){
@@ -127,7 +196,6 @@ int graph_remove_node(graph_t* g, int value){
     // the node does not exist
     if(pos == -1) return 0;
 
-    // TODO: HOW TO CALCULATE THE UPDATED graph_num_edges
     graph_node_t *node = dll_get(g->nodes, pos);
     node_t *inNode = node->inNeighbors->head;
     node_t *outNode = node->outNeighbors->head;
@@ -135,8 +203,9 @@ int graph_remove_node(graph_t* g, int value){
     // Remove edges related to all inNeighbors of value node, 
     // i.e. (1 -> 5), (2 -> 5), (1, 2) would be the inNeighbors of 5
     while(inNode != NULL){
+        graph_node_t *curr_in_node = inNode->data;
         node_t *nextNode = inNode->next;
-        int res = graph_remove_edge(g, inNode->data, value);
+        int res = graph_remove_edge(g, curr_in_node->data, value);
         if(res != 1) return 0;
         inNode = nextNode;
     }
@@ -144,8 +213,9 @@ int graph_remove_node(graph_t* g, int value){
     // Remove edges related to all inNeighbors of value node, 
     // i.e. (5 -> 1), (5 -> 2), (1, 2) would be the outNeighbors of 5
     while(outNode != NULL){
+        graph_node_t *curr_out_node = outNode->data;
         node_t *nextNode = outNode->next;
-        int res = graph_remove_edge(g, value, outNode->data);
+        int res = graph_remove_edge(g, value, curr_out_node->data);
         if(res != 1) return 0;
         outNode = nextNode;
     }
@@ -156,8 +226,7 @@ int graph_remove_node(graph_t* g, int value){
     free(node);
     
     // freeing the node_t in g->nodes
-    int res = dll_remove(g->nodes, pos);
-    if(res == 0 || res == -1) return 0;
+    dll_remove(g->nodes, pos);
     g->numNodes--;
 
     return 1;
@@ -188,19 +257,13 @@ int graph_add_edge(graph_t * g, int source, int destination){
 
 
     // if src's outNeighors contains source (0 means src->outNeighors exists but without destination value)
-    if(dll_contains_value(src->outNeighbors, destination) != -9999) return 0;
-    int res = dll_push_back(src->outNeighbors, destination);
-    // printf("Out neighors for %d: \n", src->data);
-    // print_dll(src->outNeighbors);
-    // printf("\n");
+    if(neighbor_dll_contains_graph_node(src->outNeighbors, destination) >= 0) return 0;
+    int res = dll_push_back(src->outNeighbors, dest);
     if(res != 1) return 0;
 
     // if dest's inNeighors contains source (0 means dest->inNeighors exists but without source value)
-    if(dll_contains_value(dest->inNeighbors, source) != -9999) return 0;
-    res = dll_push_back(dest->inNeighbors, source);
-    // printf("In neighors for %d: \n", dest->data);
-    // print_dll(dest->inNeighbors);
-    // printf("\n");
+    if(neighbor_dll_contains_graph_node(dest->inNeighbors, source) >= 0) return 0;
+    res = dll_push_back(dest->inNeighbors, src);
     if(res != 1) return 0;
 
     g->numEdges++;
@@ -209,49 +272,20 @@ int graph_add_edge(graph_t * g, int source, int destination){
 }
 
 // Returns 1 on success
-// Returns 0 on failure ( or if the source or destination nodes don't exist, or the edge doesn't exists )
-// Returns -1 if the graph is NULL.
-int graph_remove_edge(graph_t * g, int source, int destination){
-    // TODO: Implement me!
-    //The function removes an edge from source to destination but not the other way.
-    //Make sure you remove destination from the out neighbors of source.
-    //Make sure you remove source from the in neighbors of destination.
-    if ( g == NULL ) return -1;
-
-    int src_pos = find_node_in_graph_dll(g, source);
-    int dest_pos = find_node_in_graph_dll(g, destination);
-    if(src_pos == -1 || dest_pos == -1) return 0;
-
-    graph_node_t *src = dll_get(g->nodes, src_pos);
-    graph_node_t *dest = dll_get(g->nodes, dest_pos);
-
-    int src_neighbor_pos = dll_contains_value(src->outNeighbors, destination);
-    int dest_neighbor_pos = dll_contains_value(dest->inNeighbors, source);
-
-    int src_res = dll_remove(src->outNeighbors, src_neighbor_pos);
-    int dest_res = dll_remove(dest->inNeighbors, dest_neighbor_pos);
-
-    if(src_res <= 0 || dest_res <= 0) return 0;
-    g->numEdges--;
-    return 1;
-}
-
-// Returns 1 on success
 // Returns 0 on failure ( or if the source or destination nodes don't exist )
 // Returns -1 if the graph is NULL.
-int contains_edge( graph_t * g, int source, int destination){
+int contains_edge( graph_t * g, int source, int destintaion){
     // TODO: Implement me!
-    // TODO: Redundant code graph_add_edge
     if ( g == NULL ) return -1;
 
     int src_pos = find_node_in_graph_dll(g, source);
-    int dest_pos = find_node_in_graph_dll(g, destination);
+    int dest_pos = find_node_in_graph_dll(g, destintaion);
     if(src_pos == -1 || dest_pos == -1) return 0;
 
     graph_node_t *src = dll_get(g->nodes, src_pos);
     graph_node_t *dest = dll_get(g->nodes, dest_pos);
 
-    if(dll_contains_value(src->outNeighbors, destination) >=0 && dll_contains_value(dest->inNeighbors, source) >= 0)
+    if(neighbor_dll_contains_graph_node(src->outNeighbors, destintaion) >=0 && neighbor_dll_contains_graph_node(dest->inNeighbors, source) >= 0)
         return 1;
     return 0;
 }
@@ -362,6 +396,12 @@ void free_graph(graph_t* g){
 int graph_is_reachable(graph_t * g, int source, int dest){
     if (g == NULL) return -1;
 
+    int src_pos = find_node_in_graph_dll(g, source);
+    int dest_pos = find_node_in_graph_dll(g, dest);
+    if(src_pos < 0 || dest_pos < 0){
+        return 0;
+    } 
+
     // initialize dll which contains the nodes visited
     dll_t *visited = create_dll();
 
@@ -375,7 +415,8 @@ int graph_is_reachable(graph_t * g, int source, int dest){
         node_t *outNeighbors_node = getOutNeighbors(g, explore)->head;
         while(outNeighbors_node != NULL){
             // Add the node data to visited dll if it is not visited before for queue operations
-            int value = outNeighbors_node->data;
+            graph_node_t *curr_g_node = outNeighbors_node->data;
+            int value = curr_g_node->data;
             if(value == dest){
                 free_dll(visited);
                 free_dll(queue);
@@ -383,8 +424,8 @@ int graph_is_reachable(graph_t * g, int source, int dest){
             }
             
             // The second part of this equality evluation would prevent a cycle from happening
-            if(dll_contains_value(queue, value) == -9999 && dll_contains_value(visited, value) == -9999){
-                dll_push_back(queue, outNeighbors_node->data);
+            if(dll_contains_graph_node(queue, value) == -9999 && dll_contains_graph_node(visited, value) == -9999){
+                dll_push_back(queue, value);
             }
 
             outNeighbors_node = outNeighbors_node->next;
@@ -398,23 +439,16 @@ int graph_is_reachable(graph_t * g, int source, int dest){
 
 // helper function for graph_has_cycles
 int dfs_helper_graph_has_cycles(graph_t* g, dll_t* stack, int val){
-    // get the last popped item and make sure upon checking for cycles,
-    // the last item is not check since a bi-laterally connection between
-    // two nodes does not make a cycle
-    int stackLength = dll_size(stack);
-    if(stackLength - 2 >= 0){
-        // check the condition of 1->2 and 2->1 only if the stack gets populated sufficiently
-        int lastVistedItem = dll_get(stack, stackLength - 2);
-        if(lastVistedItem == val) return 0; // stop exploring the previous node
-    }
 
-    if(dll_contains_value(stack, val) >= 0) return 1;
+    if(dll_contains_graph_node(stack, val) >= 0) return 1;
 
     dll_push_back(stack, val);
 
     node_t *outNeighbors_node = getOutNeighbors(g, val)->head;
     while(outNeighbors_node != NULL){
-        if(dfs_helper_graph_has_cycles(g, stack, outNeighbors_node->data) == 1) return 1;
+        graph_node_t *curr_g_node = outNeighbors_node->data;
+        int value = curr_g_node->data;
+        if(dfs_helper_graph_has_cycles(g, stack, value) == 1) return 1;
         outNeighbors_node = outNeighbors_node->next;
     }
     // if the node is a dead end and not dest
@@ -435,7 +469,7 @@ int graph_has_cycle(graph_t * g){
     
     // dll stack for dfs initialized, only dll_push_back and dll_pop_back would be used for stack
     dll_t *stack = create_dll();
-    
+
     int res = dfs_helper_graph_has_cycles(g, stack, node->data);
     free_dll(stack);
     return res;
@@ -445,7 +479,7 @@ int graph_has_cycle(graph_t * g){
 // helper function for graph_print_path
 int dfs_helper_graph_print_path(graph_t* g, dll_t* stack, int val, int dest){
     // TODO: Cant a graph with cycle still have a path from src to dest?
-    if(dll_contains_value(stack, val) >= 0) return 0;
+    if(dll_contains_graph_node(stack, val) >= 0) return 0;
 
     dll_push_back(stack, val);
 
@@ -454,7 +488,9 @@ int dfs_helper_graph_print_path(graph_t* g, dll_t* stack, int val, int dest){
 
     node_t *outNeighbors_node = getOutNeighbors(g, val)->head;
     while(outNeighbors_node != NULL){
-        if(dfs_helper_graph_print_path(g, stack, outNeighbors_node->data, dest) == 1) return 1;
+        graph_node_t *curr_g_node = outNeighbors_node->data;
+        int value = curr_g_node->data;
+        if(dfs_helper_graph_print_path(g, stack, value, dest) == 1) return 1;
         outNeighbors_node = outNeighbors_node->next;
     }
     // if the node is a dead end and not dest
@@ -473,6 +509,12 @@ int dfs_helper_graph_print_path(graph_t* g, dll_t* stack, int val, int dest){
 // Returns -1 if the graph is NULL
 int graph_print_path(graph_t * g, int source, int dest){
     if (g == NULL) return -1;
+
+    int src_pos = find_node_in_graph_dll(g, source);
+    int dest_pos = find_node_in_graph_dll(g, dest);
+    if(src_pos < 0 || dest_pos < 0){
+        return 0;
+    }
 
     // Path found if src and dest is the same
     if(source == dest) return 1;
